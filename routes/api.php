@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\API\AuthController;
+// use Illuminate\Routing\Route;
 
 Route::prefix('auth')->group(function () {
     Route::get('/main-services', [AuthController::class, 'mainServices']);
@@ -11,6 +12,6 @@ Route::prefix('auth')->group(function () {
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
-
     Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
+    Route::middleware('auth:sanctum')->post('/delete-account-request', [AuthController::class, 'deleteAccountRequest']);
 });

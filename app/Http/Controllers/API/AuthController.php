@@ -34,7 +34,7 @@ class AuthController extends Controller
         RefreshToken::create([
             'user_id' => $userId,
             'token' => hash('sha256', $token),
-            'expires_at' => Carbon::now()->addDays(30),
+            'expires_at' => Carbon::now()->addDays(1),
             'revoked' => false,
         ]);
         return $token;
@@ -167,11 +167,93 @@ Storage::disk('local')->put($backPath, file_get_contents($backFile->getPathname(
         if ($request->type === 'forgot_password') {
             return $this->handleForgotPasswordOtp($request->email, $request->code);
         }
-
+if ($request->type === 'delete_account') {
+    return $this->handleDeleteAccountOtp($request->email, $request->code);
+}
         // يمكنك إضافة الأنواع الأخرى بنفس المنطق
         return response()->json(['success' => false, 'message' => 'type_not_supported'], 422);
     }
+public function deleteAccountRequest(Request $request)
+{
+    $user = $request->user();
+    if (!$user) {
+        return response()->json(['message' => 'Unauthenticated'], 401);
+    }
 
+    // إرسال OTP للتأكيد
+    $otp = $this->generateOtp();
+    $expiresAt = Carbon::now()->addSeconds(120);
+    OtpVerification::updateOrCreate(
+        ['email' => $user->email, 'type' => 'delete_account'],
+        [
+            'code' => bcrypt($otp),
+            'expires_at' => $expiresAt,
+            'attempts' => 0,
+            'is_verified' => false,
+        ]
+    );
+    $this->sendOtp($user->email, $otp, 'delete_account');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'otp_sent',
+        'data' => ['email' => $user->email]
+    ]);
+}
+
+private function handleDeleteAccountOtp($email, $code)
+{
+    $otpRecord = OtpVerification::where('email', $email)
+        ->where('type', 'delete_account')
+        ->first();
+
+    if (!$otpRecord) {
+        return response()->json(['message' => 'otp_invalid'], 422);
+    }
+
+    if ($otpRecord->attempts >= 5) {
+        return response()->json(['message' => 'otp_max_attempts'], 422);
+    }
+
+    if (Carbon::now()->gt($otpRecord->expires_at)) {
+        return response()->json(['message' => 'otp_expired'], 422);
+    }
+
+    if (!Hash::check($code, $otpRecord->code)) {
+        $otpRecord->increment('attempts');
+        return response()->json(['message' => 'otp_invalid'], 422);
+    }
+
+    // التحقق ناجح – نقوم بحذف الحساب
+    $user = User::where('email', $email)->first();
+    if (!$user) {
+        return response()->json(['message' => 'user_not_found'], 404);
+    }
+
+    // حذف توكنات الوصول الحالية
+    $user->tokens()->delete();
+    RefreshToken::where('user_id', $user->id)->update(['revoked' => true]);
+
+    // تطبيق soft delete أو force delete حسب الدور
+    if ($user->role === 'user') {
+        // زبون: حذف نهائي فوري
+        $user->forceDelete();
+        $message = 'account_permanently_deleted';
+    } else {
+        // مزود: soft delete أولاً – سيتم forceDelete بعد 30 يوم عبر Job
+        $user->delete(); // يضيف deleted_at فقط
+        $message = 'account_soft_deleted_will_be_permanently_removed_after_30_days';
+    }
+
+    // حذف سجل OTP المستخدم
+    $otpRecord->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => $message,
+        'data' => null
+    ]);
+}
     private function handleRegisterOtp($email, $code)
     {
         $pending = PendingRegistration::where('email', $email)->first();

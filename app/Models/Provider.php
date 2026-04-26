@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 
 class Provider extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'user_id', 'location_name', 'latitude', 'longitude', 'work_type',
         'main_service_id', 'id_photo_front', 'id_photo_back', 'status',
