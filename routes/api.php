@@ -1,5 +1,7 @@
 <?php
 use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\ProviderController;
+
 // use Illuminate\Routing\Route;
 
 Route::prefix('auth')->group(function () {
@@ -14,4 +16,10 @@ Route::prefix('auth')->group(function () {
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
     Route::middleware('auth:sanctum')->post('/delete-account-request', [AuthController::class, 'deleteAccountRequest']);
+});
+
+
+Route::prefix('provider')->middleware('auth:sanctum')->group(function () {
+    Route::get('/sub-services', [ProviderController::class, 'subServices']);
+    Route::post('/complete-profile', [ProviderController::class, 'completeProfile']);
 });

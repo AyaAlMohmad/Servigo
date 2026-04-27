@@ -10,6 +10,12 @@ class Service extends Model
     use SoftDeletes;
 
     protected $fillable = ['name_ar', 'name_en', 'photo'];
+
+    public function subServices()
+    {
+        return $this->hasMany(SubService::class, 'service_id');
+    }
+
     public function providers()
     {
         return $this->hasMany(Provider::class);
