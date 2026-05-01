@@ -474,10 +474,22 @@ private function handleDeleteAccountOtp($email, $code)
         );
         $this->sendOtp($user->email, $otp, 'login');
 
+        $responseData = [
+            'email' => $user->email,
+            'is_banned' => $user->is_banned,
+        ];
+
+        // إضافة حقول إضافية للمزود
+        if ($user->role === 'provider') {
+            $provider = $user->provider;
+            $responseData['status'] = $provider->status;
+            $responseData['profile_completed'] = $provider->profile_completed;
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'otp_sent',
-            'data' => ['email' => $user->email]
+            'data' => $responseData
         ]);
     }
 
