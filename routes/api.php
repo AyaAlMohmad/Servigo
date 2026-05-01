@@ -23,3 +23,14 @@ Route::prefix('provider')->middleware('auth:sanctum')->group(function () {
     Route::get('/sub-services', [ProviderController::class, 'subServices']);
     Route::post('/complete-profile', [ProviderController::class, 'completeProfile']);
 });
+
+use App\Http\Controllers\API\ChatController;
+
+Route::prefix('chat')->middleware(['auth:sanctum'])->group(function () {
+    Route::get('/button-status/{targetUserId}', [ChatController::class, 'checkChatButtonVisibility']);
+    Route::post('/start/{providerId}', [ChatController::class, 'startPrivateChat']);
+    Route::get('/provider/list', [ChatController::class, 'providerChatList']);
+    Route::get('/customer/list', [ChatController::class, 'customerChatList']);
+    Route::get('/{chatId}/messages', [ChatController::class, 'getMessages']);
+    Route::post('/{chatId}/send', [ChatController::class, 'sendMessage']);
+});

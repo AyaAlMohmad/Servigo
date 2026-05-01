@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('provider_id')->constrained('providers')->cascadeOnDelete();
             $table->enum('day', ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']);
-            $table->timestamps(); // created_at فقط, ولكن نستخدم timestamps للتطابق العام
+            $table->timestamps();
             $table->unique(['provider_id', 'day']);
         });
     }

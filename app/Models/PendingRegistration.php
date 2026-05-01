@@ -18,6 +18,5 @@ class PendingRegistration extends Model
         'otp_attempts',
     ];
 
-    // إذا كنت تستخدم timestamps في الجدول
     public $timestamps = true;
 }

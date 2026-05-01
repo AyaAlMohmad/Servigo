@@ -49,7 +49,6 @@ class ProviderController extends Controller
         ]);
     }
 
-    // 2. إكمال البروفايل
     public function completeProfile(Request $request)
     {
         $user = $request->user();
@@ -63,7 +62,6 @@ class ProviderController extends Controller
             return response()->json(['message' => 'profile_already_completed'], 403);
         }
 
-        // التحقق من صحة البيانات مع تسجيل الأخطاء
         try {
             $validated = $request->validate([
                 'sub_service_id' => 'required|exists:sub_services,id',
@@ -90,7 +88,6 @@ class ProviderController extends Controller
             ], 422);
         }
 
-        // التأكد من أن sub_service_id يتبع main_service_id الخاص بالمزود
         $subService = \App\Models\SubService::find($validated['sub_service_id']);
         if (!$subService || $subService->service_id != $provider->main_service_id) {
             return response()->json(['message' => 'sub_service_id_invalid'], 422);
@@ -99,7 +96,6 @@ class ProviderController extends Controller
         DB::beginTransaction();
 
         try {
-            // تحديث جدول providers
             $provider->update([
                 'sub_service_id' => $validated['sub_service_id'],
                 'location_description' => $validated['location_description'],
@@ -112,10 +108,8 @@ class ProviderController extends Controller
                 'profile_completed' => true,
             ]);
 
-            // تحديث overnight تلقائياً (سيتم في model boot)
             $provider->refresh();
 
-            // إدارة أيام العطلة: حذف القديمة وإضافة الجديدة
             OffDay::where('provider_id', $provider->id)->delete();
             foreach ($validated['off_days'] as $day) {
                 OffDay::create([
@@ -124,12 +118,10 @@ class ProviderController extends Controller
                 ]);
             }
 
-            // تحديث صورة المستخدم إن وُجدت
             $photoFile = $request->file('photo');
             if ($photoFile && $photoFile->isValid()) {
                 $photoPath = 'users/photos/' . uniqid() . '_' . $photoFile->getClientOriginalName();
                 Storage::disk('public')->put($photoPath, file_get_contents($photoFile->getPathname()));
-                // حذف الصورة القديمة إن وجدت
                 if ($user->photo && Storage::disk('public')->exists($user->photo)) {
                     Storage::disk('public')->delete($user->photo);
                 }
@@ -137,7 +129,6 @@ class ProviderController extends Controller
                 $user->save();
             }
 
-            // رفع الشهادات
             if ($request->hasFile('certificates')) {
                 foreach ($request->file('certificates') as $certFile) {
                     if ($certFile && $certFile->isValid()) {
@@ -151,7 +142,6 @@ class ProviderController extends Controller
                 }
             }
 
-            // رفع معرض الأعمال (portfolio)
             if ($request->has('portfolio')) {
                 foreach ($request->input('portfolio') as $index => $item) {
                     $file = $request->file("portfolio.{$index}.file");

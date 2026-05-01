@@ -10,12 +10,10 @@ class SubServicesSeeder extends Seeder
 {
     public function run(): void
     {
-        // الحصول على الخدمات الرئيسية
         $cleaning = Service::where('name_en', 'Cleaning')->first();
         $plumbing = Service::where('name_en', 'Plumbing')->first();
         $electrical = Service::where('name_en', 'Electrical')->first();
 
-        // إذا لم توجد ننشئها افتراضياً
         if (!$cleaning) {
             $cleaning = Service::create(['name_ar' => 'تنظيف', 'name_en' => 'Cleaning']);
         }
@@ -26,7 +24,6 @@ class SubServicesSeeder extends Seeder
             $electrical = Service::create(['name_ar' => 'كهرباء', 'name_en' => 'Electrical']);
         }
 
-        // إضافة الخدمات الفرعية للتنظيف
         SubService::updateOrCreate(
             ['service_id' => $cleaning->id, 'name_en' => 'House Cleaning'],
             ['name_ar' => 'تنظيف منازل', 'name_en' => 'House Cleaning']

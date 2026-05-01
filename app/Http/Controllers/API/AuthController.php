@@ -103,24 +103,22 @@ class AuthController extends Controller
             'id_photo_back' => 'required|image|mimes:jpeg,jpg,png|max:5120',
         ]);
 
-      // استبدل هذين السطرين
 // $frontPath = $request->file('id_photo_front')->store('providers/id_photos', 'public');
 // $backPath = $request->file('id_photo_back')->store('providers/id_photos', 'public');
 
-// بـ:
 $frontFile = $request->file('id_photo_front');
 if (!$frontFile || !$frontFile->isValid()) {
     return response()->json(['message' => 'Invalid front photo'], 422);
 }
 $frontPath = 'providers/id_photos/' . uniqid() . '_' . $frontFile->getClientOriginalName();
-Storage::disk('local')->put($frontPath, file_get_contents($frontFile->getPathname()));
+Storage::disk('public')->put($frontPath, file_get_contents($frontFile->getPathname()));
 
 $backFile = $request->file('id_photo_back');
 if (!$backFile || !$backFile->isValid()) {
     return response()->json(['message' => 'Invalid back photo'], 422);
 }
 $backPath = 'providers/id_photos/' . uniqid() . '_' . $backFile->getClientOriginalName();
-Storage::disk('local')->put($backPath, file_get_contents($backFile->getPathname()));
+Storage::disk('public')->put($backPath, file_get_contents($backFile->getPathname()));
         $data = $validated;
         $data['id_photo_front'] = $frontPath;
         $data['id_photo_back'] = $backPath;
@@ -170,7 +168,6 @@ Storage::disk('local')->put($backPath, file_get_contents($backFile->getPathname(
 if ($request->type === 'delete_account') {
     return $this->handleDeleteAccountOtp($request->email, $request->code);
 }
-        // يمكنك إضافة الأنواع الأخرى بنفس المنطق
         return response()->json(['success' => false, 'message' => 'type_not_supported'], 422);
     }
 public function deleteAccountRequest(Request $request)
@@ -180,7 +177,6 @@ public function deleteAccountRequest(Request $request)
         return response()->json(['message' => 'Unauthenticated'], 401);
     }
 
-    // إرسال OTP للتأكيد
     $otp = $this->generateOtp();
     $expiresAt = Carbon::now()->addSeconds(120);
     OtpVerification::updateOrCreate(
@@ -224,28 +220,22 @@ private function handleDeleteAccountOtp($email, $code)
         return response()->json(['message' => 'otp_invalid'], 422);
     }
 
-    // التحقق ناجح – نقوم بحذف الحساب
     $user = User::where('email', $email)->first();
     if (!$user) {
         return response()->json(['message' => 'user_not_found'], 404);
     }
 
-    // حذف توكنات الوصول الحالية
     $user->tokens()->delete();
     RefreshToken::where('user_id', $user->id)->update(['revoked' => true]);
 
-    // تطبيق soft delete أو force delete حسب الدور
     if ($user->role === 'user') {
-        // زبون: حذف نهائي فوري
         $user->forceDelete();
         $message = 'account_permanently_deleted';
     } else {
-        // مزود: soft delete أولاً – سيتم forceDelete بعد 30 يوم عبر Job
-        $user->delete(); // يضيف deleted_at فقط
+        $user->delete();
         $message = 'account_soft_deleted_will_be_permanently_removed_after_30_days';
     }
 
-    // حذف سجل OTP المستخدم
     $otpRecord->delete();
 
     return response()->json([
@@ -274,7 +264,6 @@ private function handleDeleteAccountOtp($email, $code)
             return response()->json(['success' => false, 'message' => 'otp_invalid'], 422);
         }
 
-        // إنشاء الحساب بشكل دائم
         $data = json_decode($pending->data, true);
         $user = User::create([
             'name' => $data['name'],
@@ -301,10 +290,8 @@ private function handleDeleteAccountOtp($email, $code)
 
         $pending->delete();
 
-        // توليد التوكنات
         list($accessToken, $refreshToken) = $this->generateTokens($user);
 
-        // تحديد response بناءً على role و status و profile_completed
         if ($user->role === 'user') {
             return response()->json([
                 'success' => true,
@@ -393,7 +380,6 @@ private function handleDeleteAccountOtp($email, $code)
             'type' => 'required|in:register,login,forgot_password,change_password,delete_account',
         ]);
 
-        // حالة التسجيل: استخدام جدول pending_registrations
         if ($request->type === 'register') {
             $pending = PendingRegistration::where('email', $request->email)->first();
             if (!$pending) {
@@ -413,8 +399,6 @@ private function handleDeleteAccountOtp($email, $code)
             ]);
         }
 
-        // باقي الأنواع: login, forgot_password, change_password, delete_account
-        // استخدام جدول otp_verifications
         $otpRecord = OtpVerification::where('email', $request->email)
             ->where('type', $request->type)
             ->first();
@@ -460,7 +444,6 @@ private function handleDeleteAccountOtp($email, $code)
             return response()->json(['message' => 'account_banned'], 403);
         }
 
-        // إرسال OTP
         $otp = $this->generateOtp();
         $expiresAt = Carbon::now()->addMinutes(30);
         OtpVerification::updateOrCreate(
@@ -476,10 +459,9 @@ private function handleDeleteAccountOtp($email, $code)
 
         $responseData = [
             'email' => $user->email,
-            'is_banned' => $user->is_banned,
+            'is_banned' => $user->is_banned==0?'false':'true',
         ];
 
-        // إضافة حقول إضافية للمزود
         if ($user->role === 'provider') {
             $provider = $user->provider;
             $responseData['status'] = $provider->status;
@@ -570,11 +552,9 @@ private function handleDeleteAccountOtp($email, $code)
         $user->password = Hash::make($request->password);
         $user->save();
 
-        // حذف جميع التوكنات القديمة (اختياري)
         $user->tokens()->delete();
         RefreshToken::where('user_id', $user->id)->update(['revoked' => true]);
 
-        // حذف سجل OTP
         $otpRecord->delete();
 
         return response()->json(['success' => true, 'message' => 'password_reset_success', 'data' => null]);
@@ -602,11 +582,9 @@ private function handleDeleteAccountOtp($email, $code)
             return response()->json(['message' => 'refresh_token_invalid'], 401);
         }
 
-        // إلغاء التوكن المستخدم
         $tokenRecord->revoked = true;
         $tokenRecord->save();
 
-        // إنشاء توكنات جديدة
         list($newAccessToken, $newRefreshToken) = $this->generateTokens($user);
 
         return response()->json([
@@ -623,10 +601,7 @@ private function handleDeleteAccountOtp($email, $code)
     {
         $user = $request->user();
         if ($user) {
-            // حذف التوكن الحالي
             $request->user()->currentAccessToken()->delete();
-
-            // حذف refresh tokens المرتبطة
             RefreshToken::where('user_id', $user->id)->update(['revoked' => true]);
         }
 
@@ -659,10 +634,7 @@ private function handleDeleteAccountOtp($email, $code)
         return response()->json(['message' => 'otp_invalid'], 422);
     }
 
-    // التحقق ناجح، نحذف سجل OTP
     $otpRecord->delete();
-
-    // جلب المستخدم
     $user = User::where('email', $email)->first();
     if (!$user) {
         return response()->json(['message' => 'user_not_found'], 404);
@@ -672,10 +644,8 @@ private function handleDeleteAccountOtp($email, $code)
         return response()->json(['message' => 'account_banned'], 403);
     }
 
-    // توليد التوكنات
     list($accessToken, $refreshToken) = $this->generateTokens($user);
 
-    // استجابة حسب الدور
     if ($user->role === 'user') {
         return response()->json([
             'success' => true,

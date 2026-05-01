@@ -30,7 +30,6 @@ protected $fillable = [
     {
         return $this->belongsTo(Service::class, 'main_service_id');
     }
-    // أضف هذه العلاقات داخل Provider.php
 
 public function offDays()
 {

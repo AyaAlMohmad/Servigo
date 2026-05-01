@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('pending_registrations', function (Blueprint $table) {
             $table->id();
             $table->string('email')->unique();
-            $table->json('data');          // يحتوي على كل بيانات التسجيل
+            $table->json('data');
             $table->string('role');        // user / provider
             $table->string('otp_code');
             $table->timestamp('otp_expires_at');
